@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ship Sealed — Pack Station</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: #0a0a0a;
+    color: #f5f5f0;
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    padding: 16px;
+    user-select: none;
+  }
+  h1, h2, h3 { font-family: 'Archivo Black', sans-serif; font-weight: normal; }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #f5f5f0;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .brand-line { font-size: 10px; letter-spacing: 0.12em; color: #ffb800; display:flex; align-items:center; gap:8px; }
+  .brand-title { font-size: 26px; line-height: 1; letter-spacing: -0.02em; margin-top: 2px; }
+  .clock-block { text-align: right; }
+  .clock-time { font-family: 'Archivo Black', sans-serif; font-size: 26px; line-height: 1; }
+  .clock-date { font-size: 11px; color: #b3b3b3; margin-top: 4px; }
+
+  .sync-badge { font-size: 9px; padding: 2px 8px; letter-spacing: 0.06em; border: 1px solid; }
+  .sync-badge.live { color: #00d97e; border-color: #00d97e; }
+  .sync-badge.local { color: #b3b3b3; border-color: #444; }
+  .sync-badge.stale { color: #ff6644; border-color: #ff6644; font-weight: 700; }
+
+  /* ROSTER — tap-in screen */
+  .roster-screen { display:flex; flex-direction:column; gap:10px; }
+  .roster-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap:10px; }
+  .roster-btn {
+    background:#151515; border:1px solid #2a2a2a; color:#f5f5f0;
+    padding:20px 12px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700;
+    letter-spacing:0.03em; cursor:pointer;
+  }
+  .roster-btn:hover { border-color:#ffb800; color:#ffb800; }
+  .roster-hint { font-size:11px; color:#8a8a8a; margin-bottom:6px; }
+
+  /* ACTIVE PACKER BAR */
+  .active-bar {
+    display:flex; justify-content:space-between; align-items:center;
+    background:#151515; border:1px solid #2a2a2a; padding:12px 16px; margin-bottom:16px;
+  }
+  .active-name { font-family:'Archivo Black',sans-serif; font-size:20px; color:#ffb800; }
+  .active-sub { font-size:11px; color:#8a8a8a; margin-top:2px; }
+  .active-bar-btns { display:flex; gap:8px; }
+  .switch-btn {
+    background:transparent; border:1px solid #444; color:#b3b3b3; padding:8px 14px;
+    font-family:inherit; font-size:11px; letter-spacing:0.05em; cursor:pointer;
+  }
+  .switch-btn:hover { border-color:#f5f5f0; color:#f5f5f0; }
+  .break-btn {
+    background:transparent; border:1px solid #ffb800; color:#ffb800; padding:8px 14px;
+    font-family:inherit; font-size:11px; letter-spacing:0.05em; cursor:pointer; font-weight:700;
+  }
+  .break-btn:hover { background:#ffb800; color:#0a0a0a; }
+  .break-btn.on-break { background:#ff8800; border-color:#ff8800; color:#0a0a0a; animation:breakPulse 2s ease-in-out infinite; }
+  @keyframes breakPulse { 0%,100%{opacity:1;} 50%{opacity:0.6;} }
+  .active-bar.on-break { border-color:#ff8800; background:#1a1206; }
+  .break-banner {
+    background:#1a1206; border:2px solid #ff8800; color:#ff8800; text-align:center;
+    padding:16px; margin-bottom:16px; font-weight:700; letter-spacing:0.05em; display:none;
+  }
+  .break-banner.show { display:block; }
+  .idle-warning {
+    background:#1a0606; border:2px solid #ff4444; color:#ff4444; text-align:center;
+    padding:16px; margin-bottom:16px; font-weight:700; letter-spacing:0.03em; display:none;
+    cursor:pointer;
+  }
+  .idle-warning.show { display:block; animation:breakPulse 1s ease-in-out infinite; }
+  .idle-warning .idle-sub { font-size:11px; color:#ff8888; margin-top:4px; font-weight:400; }
+
+  /* SCAN AREA */
+  .scan-panel {
+    background:#111; border:2px solid #ffb800; padding:24px; margin-bottom:20px; text-align:center;
+  }
+  .scan-panel input {
+    width:100%; background:#0a0a0a; border:1px solid #333; color:#f5f5f0;
+    font-family:'JetBrains Mono',monospace; font-size:18px; padding:16px; text-align:center;
+    letter-spacing:0.05em;
+  }
+  .scan-panel input:focus { outline:none; border-color:#ffb800; }
+  .scan-label { font-size:11px; color:#ffb800; letter-spacing:0.1em; margin-bottom:10px; }
+  .last-scan {
+    margin-top:14px; font-size:13px; min-height:20px;
+  }
+  .last-scan.ok { color:#00d97e; }
+  .last-scan.warn { color:#ff8800; }
+  .last-scan.err { color:#ff4444; }
+
+  /* fallback platform picker — only appears when lookup misses */
+  .fallback-picker { display:none; margin-top:16px; }
+  .fallback-picker.show { display:block; }
+  .fallback-hint { font-size:11px; color:#ff8800; margin-bottom:8px; }
+  .fallback-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; }
+  .fallback-btn {
+    background:#1a1a1a; border:1px solid #444; color:#f5f5f0; padding:14px 8px;
+    font-family:inherit; font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .fallback-btn:hover { border-color:#ffb800; color:#ffb800; }
+
+  /* SUMMARY BAR */
+  .summary-bar { display:grid; grid-template-columns: repeat(4, 1fr); gap:2px; background:#2a2a2a; margin-bottom:16px; }
+  .summary-cell { background:#0a0a0a; padding:14px 18px; }
+  .summary-label { font-size:9px; letter-spacing:0.1em; color:#b3b3b3; margin-bottom:6px; }
+  .summary-value { font-family:'Archivo Black',sans-serif; font-size:28px; line-height:1; color:#00d97e; }
+  .summary-sub { font-size:10px; color:#9a9a9a; margin-top:4px; }
+
+  /* PLATFORM BREAKDOWN */
+  .plat-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap:10px; margin-bottom:20px; }
+  .plat-cell { background:#151515; border:1px solid #2a2a2a; padding:12px 14px; }
+  .plat-name { font-size:11px; color:#b3b3b3; margin-bottom:4px; }
+  .plat-count { font-family:'Archivo Black',sans-serif; font-size:22px; color:#f5f5f0; }
+
+  /* PER PACKER TABLE */
+  table { width:100%; border-collapse:collapse; background:#111; border:1px solid #2a2a2a; font-size:13px; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #2a2a2a; }
+  th { color:#8a8a8a; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; background:#181818; }
+  tr:last-child td { border-bottom:none; }
+
+  .section-title {
+    font-size:12px; letter-spacing:0.08em; color:#8a8a8a; text-transform:uppercase;
+    margin:20px 0 10px 0; border-bottom:1px solid #2a2a2a; padding-bottom:6px;
+  }
+
+  .undo-btn {
+    background:transparent; border:1px solid #444; color:#8a8a8a; padding:8px 14px;
+    font-family:inherit; font-size:11px; letter-spacing:0.05em; cursor:pointer; margin-top:16px;
+  }
+  .undo-btn:hover { border-color:#ff4444; color:#ff4444; }
+  .eod-btn {
+    background:transparent; border:1px solid #00d97e; color:#00d97e; padding:8px 14px;
+    font-family:inherit; font-size:11px; letter-spacing:0.05em; cursor:pointer; margin-top:16px; margin-left:8px;
+  }
+  .eod-btn:hover { background:#00d97e; color:#0a0a0a; }
+  tr.idle-row { background: #1a1206; }
+  tr.idle-row td:first-child::after { content:' ⚠ idle'; color:#ff8800; font-size:10px; }
+  .pace-tag { font-size:10px; padding:1px 6px; margin-left:6px; border:1px solid; }
+  .pace-behind { color:#ff8800; border-color:#ff8800; }
+  .pace-on { color:#00d97e; border-color:#00d97e; }
+  .pace-ahead { color:#00ddff; border-color:#00ddff; }
+  .manager-badge { font-size:9px; color:#8a8a8a; letter-spacing:0.08em; margin-top:4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="brand-line">
+      <span id="syncBadge" class="sync-badge local">● LOCAL ONLY</span>
+      SHIP SEALED
+    </div>
+    <div class="brand-title">PACK STATION</div>
+  </div>
+  <div class="clock-block">
+    <div class="clock-time" id="clockTime">--:--</div>
+    <div class="clock-date" id="clockDate">-</div>
+  </div>
+</div>
+
+<!-- ROSTER SCREEN -->
+<div class="roster-screen" id="rosterScreen">
+  <div class="roster-hint">TAP YOUR NAME TO START PACKING</div>
+  <div class="roster-grid" id="rosterGrid"></div>
+</div>
+
+<!-- MAIN BOARD (hidden until packer taps in) -->
+<div id="mainBoard" style="display:none;">
+
+  <div class="active-bar" id="activeBar">
+    <div>
+      <div class="active-name" id="activePackerName">—</div>
+      <div class="active-sub" id="activeSub">scanning as this packer</div>
+    </div>
+    <div class="active-bar-btns">
+      <button class="break-btn" id="breakBtn" onclick="toggleBreak()">TAKE BREAK</button>
+      <button class="switch-btn" onclick="switchPacker()">✓ DONE — NEXT PACKER</button>
+    </div>
+  </div>
+
+  <div class="break-banner" id="breakBanner">⏸ ON BREAK — scanning paused. Tap END BREAK when back.</div>
+
+  <div class="idle-warning" id="idleWarning" onclick="dismissIdleWarning()">
+    STILL THERE? Tap here or scan to stay signed in.
+    <div class="idle-sub">Returning to roster automatically in a few seconds — this keeps scans from getting logged under the wrong name.</div>
+  </div>
+
+  <div class="scan-panel">
+    <div class="scan-label">SCAN LABEL — BOX TAPED &amp; READY</div>
+    <input type="text" id="scanInput" placeholder="Scan here…" autocomplete="off">
+    <div class="last-scan" id="lastScanMsg"></div>
+
+    <div class="fallback-picker" id="fallbackPicker">
+      <div class="fallback-hint">⚠ Couldn't auto-detect platform for this one — tap it manually:</div>
+      <div class="fallback-grid" id="fallbackGrid"></div>
+    </div>
+  </div>
+
+  <div class="summary-bar">
+    <div class="summary-cell">
+      <div class="summary-label">PACKED TODAY</div>
+      <div class="summary-value" id="tilePacked">0</div>
+    </div>
+    <div class="summary-cell">
+      <div class="summary-label">YOUR COUNT</div>
+      <div class="summary-value" id="tileMine">0</div>
+    </div>
+    <div class="summary-cell">
+      <div class="summary-label">YOUR RATE/HR</div>
+      <div class="summary-value" id="tileRate" style="color:#ffb800;">—</div>
+    </div>
+    <div class="summary-cell">
+      <div class="summary-label">CREW ACTIVE</div>
+      <div class="summary-value" id="tileCrew">0</div>
+    </div>
+  </div>
+
+  <div class="section-title">Platform Breakdown</div>
+  <div class="plat-grid" id="platGrid"></div>
+
+  <div class="section-title">Carrier Breakdown</div>
+  <div class="plat-grid" id="carrierGrid"></div>
+
+  <div class="section-title">Per-Packer Today</div>
+  <table>
+    <thead><tr><th>Packer</th><th>Packed</th><th>Last Scan</th></tr></thead>
+    <tbody id="packerRows"><tr><td colspan="3" style="color:#8a8a8a;">No scans yet.</td></tr></tbody>
+  </table>
+
+  <button class="undo-btn" onclick="undoLast()">UNDO LAST SCAN</button>
+  <button class="eod-btn" onclick="exportEOD()">EXPORT END-OF-DAY</button>
+
+  <div class="section-title">Recent Scans (undo any of these)</div>
+  <table>
+    <thead><tr><th>Time</th><th>Packer</th><th>Platform</th><th>Carrier</th><th></th></tr></thead>
+    <tbody id="recentScansRows"><tr><td colspan="5" style="color:#8a8a8a;">No scans yet.</td></tr></tbody>
+  </table>
+</div>
+
+<!-- MANAGER VIEW (?view=manager) — read-only except undo, no scan input, no roster tap-in -->
+<div id="managerBoard" style="display:none;">
+  <div class="manager-badge">📋 MANAGER VIEW — READ ONLY (except undo below)</div>
+  <div class="summary-bar" style="margin-top:12px;">
+    <div class="summary-cell">
+      <div class="summary-label">PACKED TODAY</div>
+      <div class="summary-value" id="mgrPacked">0</div>
+    </div>
+    <div class="summary-cell">
+      <div class="summary-label">CREW ACTIVE</div>
+      <div class="summary-value" id="mgrCrew">0</div>
+    </div>
+  </div>
+  <div class="section-title">Platform Breakdown</div>
+  <div class="plat-grid" id="mgrPlatGrid"></div>
+  <div class="section-title">Carrier Breakdown</div>
+  <div class="plat-grid" id="mgrCarrierGrid"></div>
+  <div class="section-title">Per-Packer Today</div>
+  <table>
+    <thead><tr><th>Packer</th><th>Packed</th><th>Rate/hr</th><th>Break</th><th>Last Scan</th></tr></thead>
+    <tbody id="mgrPackerRows"><tr><td colspan="5" style="color:#8a8a8a;">No scans yet.</td></tr></tbody>
+  </table>
+  <button class="eod-btn" onclick="exportEOD()">EXPORT END-OF-DAY</button>
+
+  <div class="section-title">Recent Scans (undo any of these)</div>
+  <table>
+    <thead><tr><th>Time</th><th>Packer</th><th>Platform</th><th>Carrier</th><th></th></tr></thead>
+    <tbody id="mgrRecentScansRows"><tr><td colspan="5" style="color:#8a8a8a;">No scans yet.</td></tr></tbody>
+  </table>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+/* ============================================================
+   ROSTER — placeholder names. Swap for the real Ship Sealed
+   pack crew once you send them over.
+   ============================================================ */
+const ROSTER = ["Donald", "Kyle", "Brandon", "Joe", "Vandy", "Rufat"];
+
+const PLATFORMS = ["Shopify", "eBay", "TikTok Shop", "Walmart", "Temu", "Best Buy"];
+
+/* ============================================================
+   CARRIER DETECTION — pattern-matched from the tracking number
+   itself. USPS/UPS/FedEx formats are well-documented and reliable.
+   Letters-vs-numeric-only is the main disambiguator between USPS
+   and FedEx on same-length numbers (see detectCarrier below).
+   TikTok's own service, GoFo, SwiftX, and other regional carriers
+   are NOT well-documented publicly — patterns below are best-effort
+   fallbacks only, checked after the main rules in detectCarrier().
+   Send real sample tracking numbers from those carriers and these
+   patterns can be tightened. Anything unmatched falls into
+   "Unknown/Other" rather than guessing wrong.
+   ============================================================ */
+const CARRIER_PATTERNS = [
+  // Add real formats here once you have sample tracking numbers:
+  // { name: "TikTok Logistics", regex: /^.../ },
+  // { name: "GoFo",             regex: /^.../ },
+  // { name: "SwiftX",           regex: /^.../ },
+];
+
+function detectCarrier(code){
+  const clean = code.trim().toUpperCase().replace(/[\s-]/g, '');
+
+  // UPS — distinct 1Z prefix, always reliable
+  if(/^1Z[0-9A-Z]{16}$/.test(clean)) return "UPS";
+
+  // USPS international/military format — 2 letters + 9 digits + "US"
+  if(/^(EA|EC|CP|LA|RA|RB)\d{9}US$/.test(clean)) return "USPS";
+
+  // FedEx Ground 96-prefix — check before generic numeric bucket below
+  if(/^96\d{18}$/.test(clean)) return "FedEx";
+
+  // Any other letters in the code = FedEx. USPS domestic tracking is numeric-only
+  // (aside from the international format caught above), so letters elsewhere
+  // point to FedEx (SmartPost and some Ground/intl formats use alphanumeric).
+  if(/[A-Z]/.test(clean)) return "FedEx";
+
+  // Purely numeric from here on
+  if(/^\d{12}$/.test(clean)) return "FedEx";  // FedEx Express
+  if(/^\d{15}$/.test(clean)) return "FedEx";  // FedEx Ground
+  if(/^\d{20,22}$/.test(clean)) return "USPS"; // long numeric defaults USPS — that's USPS's normal case, FedEx's letter-based formats are already caught above
+
+  for(const p of CARRIER_PATTERNS){
+    if(p.regex.test(clean)) return p.name;
+  }
+  return "Unknown/Other";
+}
+
+/* ============================================================
+   CONFIG — this board's own Firebase project (writes pack logs
+   here). Separate from the live board's aksvr-shipping project,
+   per your call to keep sealed data clean and separate.
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "PASTE_API_KEY_HERE",
+  authDomain: "PASTE_AUTH_DOMAIN_HERE",
+  databaseURL: "PASTE_DATABASE_URL_HERE",
+  projectId: "PASTE_PROJECT_ID_HERE"
+};
+
+/* ============================================================
+   LOOKUP_CONFIG — Pack Station Live's Firebase, read-only.
+   Wired per Rufat's handover doc — this board never writes here,
+   only reads packstation/current/orders to auto-detect platform
+   from a scanned tracking number.
+   ============================================================ */
+const LOOKUP_CONFIG = {
+  apiKey: "AIzaSyB2I2sR9czF6F29OZMyEZubmwQGP7nWFlc",
+  authDomain: "calipoke-packstation.firebaseapp.com",
+  databaseURL: "https://calipoke-packstation-default-rtdb.firebaseio.com",
+  projectId: "calipoke-packstation",
+  nodePath: "packstation/current/orders"
+};
+
+let db = null, lookupDb = null, dbReady = false, lookupReady = false;
+let activePacker = null;
+let pendingScanCode = null; // holds the scan while waiting on fallback tap
+let todayData = { scans: [] }; // { code, packer, platform, ts }
+let breaks = {}; // { packerName: [{start, end}] } — end null while on break
+let onBreak = false;
+let recentCodes = {}; // { code: ts } — duplicate-scan guard
+const DUP_GUARD_MS = 5000;
+const IDLE_THRESHOLD_MS = 40 * 60 * 1000; // 40 min — packers may batch-scan when moving boxes to be palletized, so this stays forgiving. Tighten it once you see real usage.
+const TARGET_RATE_PER_HR = null; // set a number to enable pace coloring, e.g. 12
+
+/* ============================================================
+   SHARED STATION MODE — set to false if this device belongs to
+   one packer only (then it behaves like before: remembers them
+   indefinitely across reloads, no auto-logout).
+   With it true (the recommended setup for a shared palletize-area
+   tablet/scanner): the board does NOT persist who's logged in
+   across a full shift, and auto-returns to the roster screen after
+   a stretch of no scanning — so if someone walks away without
+   hitting the handoff button, the next person doesn't accidentally
+   get scans logged under the previous packer's name.
+   ============================================================ */
+const SHARED_STATION_MODE = true;
+const IDLE_LOGOUT_WARNING_MS = 15 * 1000;  // show the "still there?" banner after this long with no scans
+const IDLE_LOGOUT_GRACE_MS = 10 * 1000;    // then this much longer before actually logging out
+// Tuned short on purpose: real workflow is scan-the-batch-then-walk-straight-to-palletize,
+// so nobody's around to read a long warning. This just needs to survive normal gaps
+// between scans within one batch, then clear fast once they're actually gone.
+let lastActivityTs = Date.now();
+let idleWarningShown = false;
+
+/* ---------- SOUND FEEDBACK — no external files needed ---------- */
+function beep(kind){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const tones = {
+      ok:   [[880, 0.08]],
+      warn: [[440, 0.07],[440, 0.07]],
+      err:  [[220, 0.25]]
+    }[kind] || [[440,0.08]];
+    let t = ctx.currentTime;
+    tones.forEach(([freq, dur]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = freq;
+      osc.connect(gain); gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.15, t);
+      osc.start(t); osc.stop(t + dur);
+      t += dur + 0.05;
+    });
+    if(navigator.vibrate) navigator.vibrate(kind === 'ok' ? 40 : 120);
+  }catch(e){ /* audio not available, fail silently */ }
+}
+
+/* ---------- PERSIST ACTIVE PACKER ---------- */
+const PACKER_KEY = 'ship_sealed_active_packer';
+function rememberPacker(name){ try{ localStorage.setItem(PACKER_KEY, name); }catch(e){} }
+function forgetPacker(){ try{ localStorage.removeItem(PACKER_KEY); }catch(e){} }
+function recallPacker(){ try{ return localStorage.getItem(PACKER_KEY); }catch(e){ return null; } }
+
+/* ---------- BREAKS ---------- */
+function toggleBreak(){
+  if(!activePacker) return;
+  if(!breaks[activePacker]) breaks[activePacker] = [];
+  if(!onBreak){
+    breaks[activePacker].push({ start: Date.now(), end: null });
+    onBreak = true;
+    document.getElementById('breakBtn').textContent = 'END BREAK';
+    document.getElementById('breakBtn').classList.add('on-break');
+    document.getElementById('activeBar').classList.add('on-break');
+    document.getElementById('breakBanner').classList.add('show');
+    document.getElementById('scanInput').disabled = true;
+    if(dbReady) db.ref('sealed_breaks/' + safeKey(activePacker)).push({ start: Date.now(), end: null, live:true });
+  } else {
+    const open = breaks[activePacker].find(b => b.end === null);
+    if(open) open.end = Date.now();
+    onBreak = false;
+    document.getElementById('breakBtn').textContent = 'TAKE BREAK';
+    document.getElementById('breakBtn').classList.remove('on-break');
+    document.getElementById('activeBar').classList.remove('on-break');
+    document.getElementById('breakBanner').classList.remove('show');
+    document.getElementById('scanInput').disabled = false;
+    document.getElementById('scanInput').focus();
+  }
+  renderBoard();
+}
+
+function totalBreakMs(packer){
+  const list = breaks[packer] || [];
+  return list.reduce((sum,b) => sum + ((b.end || Date.now()) - b.start), 0);
+}
+
+function paceTagHtml(rate){
+  if(TARGET_RATE_PER_HR === null || rate === null) return '';
+  const r = parseFloat(rate);
+  if(r < TARGET_RATE_PER_HR * 0.9) return `<span class="pace-tag pace-behind">${rate}/hr</span>`;
+  if(r > TARGET_RATE_PER_HR * 1.1) return `<span class="pace-tag pace-ahead">${rate}/hr</span>`;
+  return `<span class="pace-tag pace-on">${rate}/hr</span>`;
+}
+
+function exportEOD(){
+  const scans = todayData.scans;
+  const byPacker = {};
+  scans.forEach(s => {
+    if(!byPacker[s.packer]) byPacker[s.packer] = { count:0, byPlat:{} };
+    byPacker[s.packer].count++;
+    byPacker[s.packer].byPlat[s.platform] = (byPacker[s.packer].byPlat[s.platform]||0) + 1;
+  });
+  let text = `SHIP SEALED — END OF DAY\n${new Date().toLocaleDateString()}\n`;
+  text += `${'='.repeat(40)}\n\n`;
+  text += `TOTAL PACKED: ${scans.length}\n\n`;
+  text += `--- PER PACKER ---\n`;
+  Object.keys(byPacker).forEach(n => {
+    const p = byPacker[n];
+    const brkMin = Math.round(totalBreakMs(n)/60000);
+    const platStr = Object.entries(p.byPlat).map(([k,v]) => `${k}=${v}`).join(', ');
+    text += `  ${n}: ${p.count} packed | break: ${brkMin} min | ${platStr}\n`;
+  });
+  text += `\n--- PLATFORM TOTALS ---\n`;
+  PLATFORMS.forEach(pl => {
+    const n = scans.filter(s => s.platform === pl).length;
+    text += `  ${pl}: ${n}\n`;
+  });
+  text += `\n--- CARRIER TOTALS ---\n`;
+  const byCarrier = {};
+  scans.forEach(s => { const c = s.carrier || 'Unknown/Other'; byCarrier[c] = (byCarrier[c]||0)+1; });
+  Object.keys(byCarrier).sort((a,b) => byCarrier[b]-byCarrier[a]).forEach(c => {
+    text += `  ${c}: ${byCarrier[c]}\n`;
+  });
+  const blob = new Blob([text], { type:'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'ship_sealed_eod_' + new Date().toISOString().slice(0,10) + '.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- MANAGER VIEW ---------- */
+function isManagerView(){
+  return new URLSearchParams(window.location.search).get('view') === 'manager';
+}
+function renderManagerBoard(){
+  const scans = todayData.scans;
+  document.getElementById('mgrPacked').textContent = scans.length;
+
+  const byPacker = {};
+  scans.forEach(s => {
+    if(!byPacker[s.packer]) byPacker[s.packer] = { count:0, lastTs:0, firstTs:s.ts||Date.now() };
+    byPacker[s.packer].count++;
+    byPacker[s.packer].lastTs = Math.max(byPacker[s.packer].lastTs, s.ts||0);
+    byPacker[s.packer].firstTs = Math.min(byPacker[s.packer].firstTs, s.ts||Date.now());
+  });
+  const names = Object.keys(byPacker);
+  document.getElementById('mgrCrew').textContent = names.length;
+
+  document.getElementById('mgrPackerRows').innerHTML = names.length ? names.map(n => {
+    const p = byPacker[n];
+    const idle = (Date.now() - p.lastTs) > IDLE_THRESHOLD_MS;
+    const rowClass = idle ? 'idle-row' : '';
+    const myBreakMs = totalBreakMs(n);
+    const workedMin = Math.max(1, (Date.now() - p.firstTs - myBreakMs)/60000);
+    const rate = workedMin >= 30 ? (p.count/(workedMin/60)).toFixed(1) : 'measuring…';
+    const brkMin = Math.round(myBreakMs/60000);
+    return `<tr class="${rowClass}"><td>${n}</td><td>${p.count}</td><td>${rate}</td><td>${brkMin}m</td><td>${new Date(p.lastTs).toLocaleTimeString()}</td></tr>`;
+  }).join('') : '<tr><td colspan="5" style="color:#8a8a8a;">No scans yet.</td></tr>';
+
+  const byPlat = {};
+  PLATFORMS.forEach(p => byPlat[p]=0);
+  scans.forEach(s => { if(byPlat[s.platform]!==undefined) byPlat[s.platform]++; });
+  document.getElementById('mgrPlatGrid').innerHTML = PLATFORMS.map(p =>
+    `<div class="plat-cell"><div class="plat-name">${p}</div><div class="plat-count">${byPlat[p]}</div></div>`
+  ).join('');
+
+  const byCarrier = {};
+  scans.forEach(s => { const c = s.carrier || 'Unknown/Other'; byCarrier[c] = (byCarrier[c]||0)+1; });
+  const carrierNames = Object.keys(byCarrier).sort((a,b) => byCarrier[b]-byCarrier[a]);
+  document.getElementById('mgrCarrierGrid').innerHTML = carrierNames.length ? carrierNames.map(c =>
+    `<div class="plat-cell"><div class="plat-name">${c}</div><div class="plat-count">${byCarrier[c]}</div></div>`
+  ).join('') : '<div class="plat-cell"><div class="plat-name">No scans yet</div><div class="plat-count">—</div></div>';
+
+  document.getElementById('mgrRecentScansRows').innerHTML = renderRecentScansHtml('mgrRecentScansRows', 10);
+}
+
+/* ---------- INIT FIREBASE (write side) ---------- */
+function initFirebase(){
+  if(firebaseConfig.apiKey.startsWith("PASTE")){
+    setSyncBadge('local');
+    return;
+  }
+  try{
+    const app = firebase.initializeApp(firebaseConfig, "packApp");
+    db = firebase.database(app);
+    dbReady = true;
+    setSyncBadge('live');
+    listenToPackLog();
+  }catch(e){
+    console.error("Pack board Firebase init failed:", e);
+    setSyncBadge('stale');
+  }
+}
+
+/* ---------- INIT LOOKUP (read-only side) ---------- */
+let trackingMap = {}; // { trackingId (as-stored) : platform } — kept live via onValue
+function initLookup(){
+  if(LOOKUP_CONFIG.apiKey.startsWith("PASTE")) return; // stays disabled until wired
+  try{
+    const lApp = firebase.initializeApp(LOOKUP_CONFIG, "lookupApp");
+    lookupDb = firebase.database(lApp);
+    lookupReady = true;
+    // Live-subscribe per Rufat's recommended pattern: build a trackingId -> platform
+    // map from the whole orders node, rather than querying per-scan.
+    lookupDb.ref(LOOKUP_CONFIG.nodePath).on('value', snap => {
+      const map = {};
+      snap.forEach(child => {
+        const o = child.val();
+        if(o && o.trackingId) map[o.trackingId] = o.platform;
+      });
+      trackingMap = map;
+    }, err => console.error("Pack Station lookup feed error:", err));
+  }catch(e){
+    console.error("Lookup feed init failed:", e);
+  }
+}
+
+function normalizeTrackingCode(s){
+  return String(s).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+}
+
+function setSyncBadge(state){
+  const b = document.getElementById('syncBadge');
+  if(state === 'live'){ b.textContent = '● LIVE SYNC'; b.className = 'sync-badge live'; }
+  else if(state === 'stale'){ b.textContent = '⚠ SYNC ERROR'; b.className = 'sync-badge stale'; }
+  else { b.textContent = '● LOCAL ONLY'; b.className = 'sync-badge local'; }
+}
+
+function startOfDayTs(){ const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }
+
+function listenToPackLog(){
+  db.ref('sealed_pack_log').orderByChild('ts').startAt(startOfDayTs())
+    .on('value', snap => {
+      const scans = [];
+      snap.forEach(c => scans.push({ key: c.key, ...c.val() }));
+      todayData.scans = scans;
+      if(isManagerView()) renderManagerBoard(); else renderBoard();
+    });
+}
+
+/* ---------- ROSTER SCREEN ---------- */
+function renderRoster(){
+  const grid = document.getElementById('rosterGrid');
+  grid.innerHTML = ROSTER.map(name =>
+    `<button class="roster-btn" onclick="selectPacker('${name.replace(/'/g,"\\'")}')">${name}</button>`
+  ).join('');
+}
+function selectPacker(name){
+  activePacker = name;
+  if(!SHARED_STATION_MODE) rememberPacker(name);
+  lastActivityTs = Date.now();
+  idleWarningShown = false;
+  document.getElementById('rosterScreen').style.display = 'none';
+  document.getElementById('mainBoard').style.display = 'block';
+  document.getElementById('activePackerName').textContent = name;
+  renderBoard();
+  setTimeout(() => document.getElementById('scanInput').focus(), 100);
+}
+function switchPacker(){
+  activePacker = null;
+  forgetPacker();
+  idleWarningShown = false;
+  document.getElementById('idleWarning').classList.remove('show');
+  document.getElementById('mainBoard').style.display = 'none';
+  document.getElementById('rosterScreen').style.display = 'flex';
+}
+
+/* ---------- SHARED-STATION IDLE LOGOUT ---------- */
+function dismissIdleWarning(){
+  lastActivityTs = Date.now();
+  idleWarningShown = false;
+  document.getElementById('idleWarning').classList.remove('show');
+  if(!onBreak) document.getElementById('scanInput').focus();
+}
+function checkIdleLogout(){
+  if(!SHARED_STATION_MODE || !activePacker || onBreak) return;
+  const idleFor = Date.now() - lastActivityTs;
+  if(idleFor > IDLE_LOGOUT_WARNING_MS + IDLE_LOGOUT_GRACE_MS){
+    switchPacker(); // grace period expired with no response — hand the station back to the roster
+  } else if(idleFor > IDLE_LOGOUT_WARNING_MS){
+    idleWarningShown = true;
+    document.getElementById('idleWarning').classList.add('show');
+  }
+}
+setInterval(checkIdleLogout, 3000);
+
+/* ---------- SCAN HANDLING ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('scanInput');
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' && input.value.trim()){
+      handleScan(input.value.trim());
+      input.value = '';
+    }
+  });
+});
+
+function handleScan(code){
+  lastActivityTs = Date.now();
+  if(idleWarningShown){ idleWarningShown = false; document.getElementById('idleWarning').classList.remove('show'); }
+
+  if(onBreak){
+    const msg = document.getElementById('lastScanMsg');
+    msg.textContent = '⏸ On break — tap END BREAK before scanning';
+    msg.className = 'last-scan warn';
+    beep('warn');
+    return;
+  }
+  const lastSeen = recentCodes[code];
+  if(lastSeen && (Date.now() - lastSeen) < DUP_GUARD_MS){
+    const msg = document.getElementById('lastScanMsg');
+    msg.textContent = '⚠ Already scanned that one seconds ago — ignored';
+    msg.className = 'last-scan warn';
+    beep('warn');
+    return;
+  }
+  recentCodes[code] = Date.now();
+
+  const msg = document.getElementById('lastScanMsg');
+  msg.textContent = 'Looking up platform…';
+  msg.className = 'last-scan';
+
+  lookupPlatform(code, (platform) => {
+    if(platform){
+      logPack(code, platform);
+      msg.textContent = `✓ Logged — ${platform}`;
+      msg.className = 'last-scan ok';
+      beep('ok');
+    } else {
+      pendingScanCode = code;
+      msg.textContent = `⚠ Scanned — couldn't detect platform`;
+      msg.className = 'last-scan warn';
+      beep('warn');
+      showFallbackPicker();
+    }
+  });
+}
+
+function lookupPlatform(code, callback){
+  if(!lookupReady){ callback(null); return; }
+
+  // 1. exact match first — trackingId is stored exactly as imported
+  if(trackingMap[code] !== undefined){ callback(trackingMap[code]); return; }
+
+  // 2. tolerant suffix match — handles carrier prefixes or partial scans,
+  //    per Rufat's handover notes on matching raw scanned barcodes
+  const normScan = normalizeTrackingCode(code);
+  for(const trackingId in trackingMap){
+    const normStored = normalizeTrackingCode(trackingId);
+    if(normStored.length >= 4 && (normScan.endsWith(normStored) || normStored.endsWith(normScan))){
+      callback(trackingMap[trackingId]);
+      return;
+    }
+  }
+  callback(null);
+}
+
+function showFallbackPicker(){
+  const grid = document.getElementById('fallbackGrid');
+  grid.innerHTML = PLATFORMS.map(p =>
+    `<button class="fallback-btn" onclick="resolveFallback('${p}')">${p}</button>`
+  ).join('');
+  document.getElementById('fallbackPicker').classList.add('show');
+}
+function resolveFallback(platform){
+  lastActivityTs = Date.now();
+  if(pendingScanCode){
+    logPack(pendingScanCode, platform);
+    document.getElementById('lastScanMsg').textContent = `✓ Logged — ${platform} (manual)`;
+    document.getElementById('lastScanMsg').className = 'last-scan ok';
+  }
+  pendingScanCode = null;
+  document.getElementById('fallbackPicker').classList.remove('show');
+  document.getElementById('scanInput').focus();
+}
+
+function logPack(code, platform){
+  const carrier = detectCarrier(code);
+  const entry = { code, packer: activePacker, platform, carrier, ts: Date.now() };
+  if(dbReady){
+    db.ref('sealed_pack_log').push(entry);
+  } else {
+    entry.key = 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    todayData.scans.push(entry);
+    renderBoard();
+  }
+}
+
+function undoLast(){
+  if(!todayData.scans.length) return;
+  const last = [...todayData.scans].sort((a,b) => b.ts - a.ts)[0];
+  undoScan(last.key);
+}
+
+function undoScan(key){
+  const entry = todayData.scans.find(s => s.key === key);
+  if(!entry) return;
+  if(!confirm('Undo this scan (' + (entry.platform||'?') + ', ' + (entry.packer||'?') + ')?')) return;
+  if(dbReady && key && !String(key).startsWith('local_')){
+    db.ref('sealed_pack_log/' + key).remove();
+  } else {
+    todayData.scans = todayData.scans.filter(s => s.key !== key);
+    renderBoard();
+  }
+}
+
+function renderRecentScansHtml(rowsId, count){
+  const recent = [...todayData.scans].sort((a,b) => b.ts - a.ts).slice(0, count);
+  if(!recent.length) return '<tr><td colspan="5" style="color:#8a8a8a;">No scans yet.</td></tr>';
+  return recent.map(s => `<tr>
+    <td>${new Date(s.ts).toLocaleTimeString()}</td>
+    <td>${s.packer}</td>
+    <td>${s.platform}</td>
+    <td>${s.carrier || '—'}</td>
+    <td><button class="switch-btn" style="padding:4px 10px;font-size:10px;" onclick="undoScan('${s.key}')">UNDO</button></td>
+  </tr>`).join('');
+}
+
+/* ---------- RENDER ---------- */
+function renderBoard(){
+  const scans = todayData.scans;
+  document.getElementById('tilePacked').textContent = scans.length;
+
+  const mineScans = scans.filter(s => s.packer === activePacker);
+  const mine = mineScans.length;
+  document.getElementById('tileMine').textContent = mine;
+
+  // break-adjusted personal rate — count / (active time worked, breaks subtracted)
+  if(mineScans.length){
+    const myFirstTs = Math.min(...mineScans.map(s=>s.ts));
+    const rawMs = Date.now() - myFirstTs;
+    const myBreakMs = totalBreakMs(activePacker);
+    const activeMin = Math.max(1, (rawMs - myBreakMs) / 60000);
+    const rateEl = document.getElementById('tileRate');
+    if(activeMin >= 30){
+      rateEl.textContent = (mine/(activeMin/60)).toFixed(1) + '/hr';
+    } else {
+      rateEl.textContent = 'measuring…';
+    }
+  }
+  if(activePacker){
+    const brkMin = Math.round(totalBreakMs(activePacker)/60000);
+    document.getElementById('activeSub').textContent =
+      onBreak ? 'on break' : (brkMin > 0 ? brkMin + ' min break today' : 'scanning as this packer');
+  }
+
+  const byPacker = {};
+  scans.forEach(s => {
+    if(!byPacker[s.packer]) byPacker[s.packer] = { count:0, lastTs:0, firstTs:s.ts||Date.now() };
+    byPacker[s.packer].count++;
+    byPacker[s.packer].lastTs = Math.max(byPacker[s.packer].lastTs, s.ts||0);
+    byPacker[s.packer].firstTs = Math.min(byPacker[s.packer].firstTs, s.ts||Date.now());
+  });
+  const names = Object.keys(byPacker);
+  document.getElementById('tileCrew').textContent = names.length;
+
+  if(names.length){
+    document.getElementById('packerRows').innerHTML = names.map(n => {
+      const p = byPacker[n];
+      const idle = (Date.now() - p.lastTs) > IDLE_THRESHOLD_MS && !(n === activePacker && onBreak);
+      const rowClass = idle ? 'idle-row' : '';
+      const myBreakMs = totalBreakMs(n);
+      const workedMin = Math.max(1, (Date.now() - p.firstTs - myBreakMs)/60000);
+      const rate = workedMin >= 30 ? (p.count/(workedMin/60)).toFixed(1) : null;
+      const paceTag = paceTagHtml(rate);
+      return `<tr class="${rowClass}"><td>${n}</td><td>${p.count}${paceTag}</td><td>${new Date(p.lastTs).toLocaleTimeString()}</td></tr>`;
+    }).join('');
+  }
+
+  const byPlat = {};
+  PLATFORMS.forEach(p => byPlat[p]=0);
+  scans.forEach(s => { if(byPlat[s.platform]!==undefined) byPlat[s.platform]++; });
+  document.getElementById('platGrid').innerHTML = PLATFORMS.map(p =>
+    `<div class="plat-cell"><div class="plat-name">${p}</div><div class="plat-count">${byPlat[p]}</div></div>`
+  ).join('');
+
+  const byCarrier = {};
+  scans.forEach(s => { const c = s.carrier || 'Unknown/Other'; byCarrier[c] = (byCarrier[c]||0)+1; });
+  const carrierNames = Object.keys(byCarrier).sort((a,b) => byCarrier[b]-byCarrier[a]);
+  document.getElementById('carrierGrid').innerHTML = carrierNames.length ? carrierNames.map(c =>
+    `<div class="plat-cell"><div class="plat-name">${c}</div><div class="plat-count">${byCarrier[c]}</div></div>`
+  ).join('') : '<div class="plat-cell"><div class="plat-name">No scans yet</div><div class="plat-count">—</div></div>';
+
+  document.getElementById('recentScansRows').innerHTML = renderRecentScansHtml('recentScansRows', 5);
+}
+
+/* ---------- CLOCK ---------- */
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clockTime').textContent = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('clockDate').textContent = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+
+/* ---------- BOOT ---------- */
+renderRoster();
+updateClock();
+setInterval(updateClock, 1000);
+initFirebase();
+initLookup();
+
+if(isManagerView()){
+  document.getElementById('rosterScreen').style.display = 'none';
+  document.getElementById('mainBoard').style.display = 'none';
+  document.getElementById('managerBoard').style.display = 'block';
+  renderManagerBoard();
+  setInterval(renderManagerBoard, 15000); // keep idle flags fresh even with no new scans
+} else {
+  renderBoard();
+  setInterval(renderBoard, 60000); // refresh idle flags periodically
+  // auto-resume last active packer — only on a personal (non-shared) device
+  if(!SHARED_STATION_MODE){
+    const remembered = recallPacker();
+    if(remembered && ROSTER.includes(remembered)){
+      selectPacker(remembered);
+    }
+  }
+}
+</script>
+</body>
+</html>
